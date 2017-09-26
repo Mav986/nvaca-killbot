@@ -1,3 +1,7 @@
+import requests
+
+import config
+
 """
 Killbot message format
 {
@@ -54,3 +58,18 @@ def check_association(character, associations):
         result |= character['corporation']['id'] in associations
 
     return result
+
+
+def fetch_new_kills(queueID, ttw):
+    url = config.REDISQ_URL.format(queueID = queueID, ttw=ttw)
+
+    kills = []
+
+    while True:
+        r = requests.get(url).json()
+        if r['package'] == None:
+            break
+
+        kills.append(r['package'])
+
+    return kills
