@@ -24,9 +24,13 @@ def run():
     running = True
     while running:
         try:
-            kills = redisq.fetch_new_kills(config.REDISQ_QUEUE_ID, config.REDISQ_TTW)
+            kill = redisq.fetch_kill(config.REDISQ_QUEUE_ID, config.REDISQ_TTW)
 
-            for json in map(redisq.format_kill, kills):
+            if not kill:
+                continue
+
+            if redisq.filter_affiliation(kill):
+                json=redisq.format_kill(kill)
                 r = requests.post(config.WEBHOOK_URL, json=json)
                 logger.debug(r, json)
 
