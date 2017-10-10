@@ -49,9 +49,12 @@ def fetch_kill(queueID, ttw):
     """
     url = config.REDISQ_URL.format(queueID=queueID, ttw=ttw)
 
-    r = requests.get(url).json()
+    r = requests.get(url)
 
-    return r.get('package', None)
+    if r.status_code == 200:
+        return r.json().get('package', None)
+    else:
+        r.raise_for_status()
 
 
 def filter_affiliation(kill):
