@@ -3,6 +3,8 @@ import requests
 import config
 import esi
 
+from datetime import datetime
+
 
 def check_affiliation(character, affiliations):
     """
@@ -77,40 +79,40 @@ def filter_affiliation(kill):
     return result
 
 
-def format_kill(kill):
+def format_system(system_id):
     """
-    Format the kill for display on slack
-    :param kill: Kill object from RedisQ
-    :return: Dictionary that can be dumped into json format codes for slack message
+    Determines whether a System is in Wormhole space or Known space and produces a formatted location field accordingly
+    :param system_id: ID of the system to be formatted
+    :return: Text content for the System field in the killmail response
     """
-    killID = kill['killID']
-    killmail = kill.get('killmail', {})
+    region = esi.get_system_region(system_id)
+    wspace = esi.check_jspace(system_id)
+    solar_system_details = esi.get_system(system_id)
 
-    victim = killmail.get('victim', {})
-    loss = check_affiliation(victim, config.AFFILIATIONS)
-    attackers = killmail.get('attackers', [])
-    killer = [a for a in attackers if a['final_blow']][0]
-    max_dmg = \
-    [a for a in attackers if a.get('damage_done', 0) == max([atk.get('damage_done', 0) for atk in attackers])][0]
-
-    solar_system = killmail.get('solar_system_id')
-    region = esi.get_system_region(solar_system)
-    zkb = kill.get('zkb', {})
-
-    victim_ship = esi.get_name(victim.get('ship_type_id'))
-
-    if victim_ship:
-        ship_text = '<https://zkillboard.com/ship/{id}|{name}>'.format(**victim_ship)
+    if not wspace:
+        system = "<https://zkillboard.com/system/{solar_system[system_id]}|{solar_system[name]}> " \
+                 "({solar_system[security_status]:.2f})/ " \
+                 "<https://zkillboard.com/region/{region[region_id]}|{region[name]}>".format(region=region,
+                                                                                             solar_system=solar_system_details)
     else:
-        ship_text = 'Unknown'
+        system = "<https://zkillboard.com/system/{solar_system[system_id]}|{solar_system[name]}> ({wspace})/ " \
+                 "<https://zkillboard.com/region/{region[region_id]}|{region[name]}>".format(
+            solar_system=solar_system_details,
+            region=region,
+            wspace=wspace)
 
-    wspace = esi.check_jspace(solar_system)
-    solar_system_details = esi.get_system(solar_system)
+    return system
 
-    # Get character info, substitute char name with ship type for nameless NPCs
-    # Corp name substituted with faction default corp if corp missing and faction available.
-    # both set to Unknown if neither of the above apply.
-    for party in [victim, killer, max_dmg]:
+
+def get_party_details(parties):
+    """
+    Get character info, substitute char name with ship type for nameless NPCs
+    Corp name substituted with faction default corp if corp missing and faction available.
+    both set to Unknown if neither of the above apply.
+    :param parties: iterable of
+    :return:
+    """
+    for party in parties:
         if 'character_id' in party:
             party['details'] = esi.get_character(party.get('character_id'))
             party['zkb_link'] = 'https://zkillboard.com/character/{}'.format(party.get('character_id'))
@@ -132,17 +134,39 @@ def format_kill(kill):
             party['corporation'] = {'corporation_name': 'Unknown'}
             party['corp_zkb_link'] = '#'
 
-    if not wspace:
-        system = "<https://zkillboard.com/system/{solar_system[system_id]}|{solar_system[name]}> " \
-                 "({solar_system[security_status]:.2f})/ " \
-                 "<https://zkillboard.com/region/{region[region_id]}|{region[name]}>".format(region=region,
-                                                                                             solar_system=solar_system_details)
+    return parties
+
+
+def format_kill(kill):
+    """
+    Format the kill for display on slack
+    :param kill: Kill object from RedisQ
+    :return: Dictionary that can be dumped into json format codes for slack message
+    """
+    killID = kill['killID']
+    killmail = kill.get('killmail', {})
+
+    victim = killmail.get('victim', {})
+    loss = check_affiliation(victim, config.AFFILIATIONS)
+    attackers = killmail.get('attackers', [])
+    killer = [a for a in attackers if a['final_blow']][0]
+    max_dmg = \
+        [a for a in attackers if a.get('damage_done', 0) == max([atk.get('damage_done', 0) for atk in attackers])][0]
+
+    zkb = kill.get('zkb', {})
+
+    victim_ship = esi.get_name(victim.get('ship_type_id'))
+
+    if victim_ship:
+        ship_text = '<https://zkillboard.com/ship/{id}|{name}>'.format(**victim_ship)
     else:
-        system = "<https://zkillboard.com/system/{solar_system[system_id]}|{solar_system[name]}> ({wspace})/ " \
-                 "<https://zkillboard.com/region/{region[region_id]}|{region[name]}>".format(
-            solar_system=solar_system_details,
-            region=region,
-            wspace=wspace)
+        ship_text = 'Unknown'
+
+
+
+    victim, killer, max_dmg = get_party_details((victim, killer, max_dmg))
+
+    system = format_system(killmail.get('solar_system_id'))
 
     if loss:
         title = "<{victim[zkb_link]}|{victim[details][name]}> was killed by <{killer[zkb_link]}|{killer[details][name]}> " \
@@ -192,6 +216,9 @@ def format_kill(kill):
                 ],
                 "thumb_url": "https://imageserver.eveonline.com/Render/{ship_type_id}_64.png".format(
                     ship_type_id=victim.get('ship_type_id', {})),
+                "footer": "<https://zkillboard.com/kill/{}|View on zkillboard.com>".format(killID),
+                "footer_icon": "https://zkillboard.com/img/wreck.png",
+                "ts": datetime.strptime(killmail.get('killmail_time'), '%Y-%m-%dT%H:%M:%SZ').timestamp()
             }
         ]
     }
