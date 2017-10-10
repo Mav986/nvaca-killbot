@@ -87,7 +87,8 @@ def format_kill(kill):
     loss = check_affiliation(victim, config.AFFILIATIONS)
     attackers = killmail.get('attackers', [])
     killer = [a for a in attackers if a['final_blow']][0]
-    max_dmg = [a for a in attackers if a.get('damage_done', 0) == max([atk.get('damage_done', 0) for atk in attackers])][0]
+    max_dmg = \
+    [a for a in attackers if a.get('damage_done', 0) == max([atk.get('damage_done', 0) for atk in attackers])][0]
 
     solar_system = killmail.get('solar_system_id')
     region = esi.get_system_region(solar_system)
@@ -122,7 +123,8 @@ def format_kill(kill):
             party['corp_zkb_link'] = 'https://zkillboard.com/corporation/{}'.format(party.get('corporation_id'))
         elif 'faction_id' in party:
             party['corporation'] = esi.get_faction_corp(party.get('faction_id'))
-            party['corp_zkb_link'] = 'https://zkillboard.com/corporation/{}'.format(party['corporation'].get('corporation_id'))
+            party['corp_zkb_link'] = 'https://zkillboard.com/corporation/{}'.format(
+                party['corporation'].get('corporation_id'))
         else:
             party['corporation'] = {'corporation_name': 'Unknown'}
             party['corp_zkb_link'] = '#'
@@ -134,15 +136,17 @@ def format_kill(kill):
                                                                                              solar_system=solar_system_details)
     else:
         system = "<https://zkillboard.com/system/{solar_system[system_id]}|{solar_system[name]}> ({wspace})/ " \
-                 "<https://zkillboard.com/region/{region[region_id]}|{region[name]}>".format(solar_system=solar_system_details,
-                                                                                             region=region,
-                                                                                             wspace=wspace)
+                 "<https://zkillboard.com/region/{region[region_id]}|{region[name]}>".format(
+            solar_system=solar_system_details,
+            region=region,
+            wspace=wspace)
 
     if loss:
         title = "<{victim[zkb_link]}|{victim[details][name]}> was killed by <{killer[zkb_link]}|{killer[details][name]}> " \
                 "(<{killer[corp_zkb_link]}|{killer[corporation][corporation_name]}>)"
     else:
-        title = "<{killer[zkb_link]}|{killer[details][name]}> killed <{victim[zkb_link]}|{victim[details][name]}> (<{victim[corp_zkb_link]}|{victim[corporation][corporation_name]}>)"
+        title = "<{killer[zkb_link]}|{killer[details][name]}> killed <{victim[zkb_link]}|{victim[details][name]}> " \
+                "(<{victim[corp_zkb_link]}|{victim[corporation][corporation_name]}>)"
 
     json = {
         "attachments": [
@@ -150,7 +154,6 @@ def format_kill(kill):
                 "fallback": "https://zkillboard.com/kill/{}/".format(killID),
                 "color": (config.COLOR_LOSS if loss else config.COLOR_KILL),
                 "title": title.format(killer=killer, victim=victim),
-                "title_link": "https://zkillboard.com/kill/{}".format(killID),
                 "fields": [
                     {
                         "title": "Damage taken",
@@ -175,7 +178,7 @@ def format_kill(kill):
                     {
                         "title": "Most damage",
                         "value": "<{most_dmg[zkb_link]}|{most_dmg[details][name]}>"
-                                 "({most_dmg[damage_done]:,.0f})".format(most_dmg=max_dmg),
+                                 " ({most_dmg[damage_done]:,.0f})".format(most_dmg=max_dmg),
                         "short": False
                     },
                     {
