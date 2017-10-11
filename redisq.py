@@ -137,6 +137,21 @@ def get_party_details(parties):
     return parties
 
 
+def format_field(title, value, short=True):
+    """
+    Format an attachment field for slack messages
+    :param title: Field title
+    :param value: Field text
+    :param short: Whether the field should be rendered in two column style
+    :return: Dictionary ready to be converted to JSON for display in Slack.
+    """
+    return {
+        "title": title,
+        "value": value,
+        "short": short
+    }
+
+
 def format_kill(kill):
     """
     Format the kill for display on slack
@@ -147,75 +162,67 @@ def format_kill(kill):
     killmail = kill.get('killmail', {})
 
     victim = killmail.get('victim', {})
+
+    # Treat as a loss if victim is in the AFFILIATIONS list.
     loss = check_affiliation(victim, config.AFFILIATIONS)
     attackers = killmail.get('attackers', [])
+
+    # Determine which attacker struck the killing blow and which dealt the maximum damage.
     killer = [a for a in attackers if a['final_blow']][0]
     max_dmg = \
         [a for a in attackers if a.get('damage_done', 0) == max([atk.get('damage_done', 0) for atk in attackers])][0]
 
     zkb = kill.get('zkb', {})
 
+    # Fetch victim ship name from ESI
     victim_ship = esi.get_name(victim.get('ship_type_id'))
 
+    # Format victim ship name as a zkillboard link for slack.
     if victim_ship:
         ship_text = '<https://zkillboard.com/ship/{id}|{name}>'.format(**victim_ship)
     else:
         ship_text = 'Unknown'
 
-
-
+    # Get Name and Corporation for victim, killer and max damage dealer.
     victim, killer, max_dmg = get_party_details((victim, killer, max_dmg))
 
+    # Get formatted system data via esi.
     system = format_system(killmail.get('solar_system_id'))
 
+    # Set attachment colour and title depending on whether the kill is a loss.
     if loss:
-        title = "<{victim[zkb_link]}|{victim[details][name]}> was killed by <{killer[zkb_link]}|{killer[details][name]}> " \
-                "(<{killer[corp_zkb_link]}|{killer[corporation][corporation_name]}>)"
+        color = config.COLOR_LOSS
+        title = "<{victim[zkb_link]}|{victim[details][name]}> was killed by <{killer[zkb_link]}|{killer[details][name]}>" \
+                " (<{killer[corp_zkb_link]}|{killer[corporation][corporation_name]}>)"
     else:
-        title = "<{killer[zkb_link]}|{killer[details][name]}> killed <{victim[zkb_link]}|{victim[details][name]}> " \
-                "(<{victim[corp_zkb_link]}|{victim[corporation][corporation_name]}>)"
+        color = config.COLOR_KILL
+        title = "<{killer[zkb_link]}|{killer[details][name]}> killed <{victim[zkb_link]}|{victim[details][name]}>" \
+                " (<{victim[corp_zkb_link]}|{victim[corporation][corporation_name]}>)"
 
+    # Set up attachment fields
+    fields = [
+        format_field("Damage taken", "{:,.0f}".format(victim.get("damage_taken", 0))),
+        format_field("Pilots involved", "{:,.0f}".format(len(attackers))),
+        format_field("Value","{:,.0f}".format(zkb.get("totalValue",0))),
+        format_field("Ship",ship_text),
+        format_field(
+            "Most damage",
+            "<{most_dmg[zkb_link]}|{most_dmg[details][name]}> ({most_dmg[damage_done]:,.0f})".format(most_dmg=max_dmg),
+            short=False
+        ),
+        format_field("System", system, short=False)
+    ]
+
+    # Combine data ready for converting to json and return.
     json = {
         "attachments": [
             {
                 "fallback": "https://zkillboard.com/kill/{}/".format(killID),
-                "color": (config.COLOR_LOSS if loss else config.COLOR_KILL),
+                "color": color,
                 "title": title.format(killer=killer, victim=victim),
-                "fields": [
-                    {
-                        "title": "Damage taken",
-                        "value": "{:,.0f}".format(victim.get('damage_taken', 0)),
-                        "short": True
-                    },
-                    {
-                        "title": "Pilots involved",
-                        "value": "{:,.0f}".format(len(attackers)),
-                        "short": True
-                    },
-                    {
-                        "title": "Value",
-                        "value": '{:,.2f}'.format(zkb.get('totalValue')),
-                        "short": True
-                    },
-                    {
-                        "title": "Ship",
-                        "value": ship_text,
-                        "short": True
-                    },
-                    {
-                        "title": "Most damage",
-                        "value": "<{most_dmg[zkb_link]}|{most_dmg[details][name]}>"
-                                 " ({most_dmg[damage_done]:,.0f})".format(most_dmg=max_dmg),
-                        "short": False
-                    },
-                    {
-                        "title": "System",
-                        "value": system,
-                        "short": False
-                    }
-                ],
-                "thumb_url": "https://imageserver.eveonline.com/Render/{ship_type_id}_64.png".format(
-                    ship_type_id=victim.get('ship_type_id', {})),
+                "fields": fields,
+                "thumb_url": "https://imageserver.eveonline.com/Render/{}_64.png".format(
+                    victim.get('ship_type_id', {})),
                 "footer": "<https://zkillboard.com/kill/{}|View on zkillboard.com>".format(killID),
                 "footer_icon": "https://zkillboard.com/img/wreck.png",
                 "ts": datetime.strptime(killmail.get('killmail_time'), '%Y-%m-%dT%H:%M:%SZ').timestamp()
