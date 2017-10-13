@@ -100,6 +100,17 @@ def get_name(id):
         raise ValueError("No results for ID {}".format(id))
 
 
+def get_type(type_id):
+    """
+    Get details for a Type ID
+    :param type_id: Type ID to be resolved
+    :return: Dictionary containing type details
+    """
+    op = esiapp.op['get_universe_types_type_id'](type_id=type_id)
+
+    return _get_esi(op)
+
+
 def get_faction_corp(id):
     """
     Get the primary corporation associated with a Faction from ESI

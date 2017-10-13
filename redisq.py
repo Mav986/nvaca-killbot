@@ -117,7 +117,7 @@ def get_party_details(parties):
             party['details'] = esi.get_character(party.get('character_id'))
             party['zkb_link'] = 'https://zkillboard.com/character/{}'.format(party.get('character_id'))
         elif 'ship_type_id' in party:
-            party['details'] = esi.get_name(party.get('ship_type_id'))
+            party['details'] = esi.get_type(party.get('ship_type_id'))
             party['zkb_link'] = 'https://zkillboard.com/ship/{}'.format(party.get('ship_type_id'))
         else:
             party['details'] = {'name': 'Unknown'}
@@ -175,11 +175,11 @@ def format_kill(kill):
     zkb = kill.get('zkb', {})
 
     # Fetch victim ship name from ESI
-    victim_ship = esi.get_name(victim.get('ship_type_id'))
+    victim_ship = esi.get_type(victim.get('ship_type_id'))
 
     # Format victim ship name as a zkillboard link for slack.
     if victim_ship:
-        ship_text = '<https://zkillboard.com/ship/{id}|{name}>'.format(**victim_ship)
+        ship_text = '<https://zkillboard.com/ship/{type_id}|{name}>'.format(**victim_ship)
     else:
         ship_text = 'Unknown'
 
