@@ -2,6 +2,7 @@ import requests
 
 import config
 import esi
+from esipy.exceptions import APIException
 
 from datetime import datetime
 
@@ -127,9 +128,13 @@ def get_party_details(parties):
             party['corporation'] = esi.get_corporation(party.get('corporation_id'))
             party['corp_zkb_link'] = 'https://zkillboard.com/corporation/{}'.format(party.get('corporation_id'))
         elif 'faction_id' in party:
-            party['corporation'] = esi.get_faction_corp(party.get('faction_id'))
-            party['corp_zkb_link'] = 'https://zkillboard.com/corporation/{}'.format(
-                party['corporation'].get('corporation_id'))
+            try:
+                party['corporation'] = esi.get_faction_corp(party.get('faction_id'))
+                party['corp_zkb_link'] = 'https://zkillboard.com/corporation/{}'.format(
+                    party['corporation'].get('corporation_id'))
+            except APIException as e:
+                party['corporation'] = {'corporation_name': 'Unknown'}
+                party['corp_zkb_link'] = 'https://zkillboard.com/faction/{}/'.format(party.get('faction_id'))
         else:
             party['corporation'] = {'corporation_name': 'Unknown'}
             party['corp_zkb_link'] = '#'
