@@ -123,10 +123,12 @@ def get_faction_corp(id):
 
     if factions:
         # TODO: Handle invalid faction IDs
-        corp_id = [f['corporation_id'] for f in factions if f['faction_id'] == id][0]
-        corp = get_corporation(corp_id)
-        # add corporation ID to result set
-        return {'corporation_id': corp_id, **corp}
+        corp_id = [f.get('corporation_id',None) for f in factions if f['faction_id'] == id][0]
+        if corp_id:
+            corp = get_corporation(corp_id)
+            return {'corporation_id':corp_id, **corp}
+        else:
+            raise ValueError('No Corp for faction id {}'.format(id))
 
 
 def get_system_region(system_id):

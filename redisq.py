@@ -2,7 +2,6 @@ import requests
 
 import config
 import esi
-from esipy.exceptions import APIException
 
 from datetime import datetime
 
@@ -58,6 +57,27 @@ def fetch_kill(queueID, ttw):
         return r.json().get('package', None)
     else:
         r.raise_for_status()
+
+
+def from_zkb_api(killID):
+    """
+    Generate a redisq-like output for a killmail from zkb api
+    :param killID: ZKB Kill ID
+    :return: kill-dict parsable by format_kill
+    """
+
+    api_result = requests.get('https://zkillboard.com/api/killID/{killID}/'.format(killID=killID))
+
+    if api_result.status_code == 200:
+        killmail = api_result.json()[0]
+        zkb = killmail.pop('zkb')
+        zkb['href'] = 'https://esi.tech.ccp.is/v1/killmails/{killID}/{hash}/'.format(killID=killID, hash=zkb['hash'])
+        kill = {'killID': killID, 'killmail': killmail, 'zkb': zkb}
+
+        return kill
+
+    else:
+        raise ConnectionError('Invalid zkb API result')
 
 
 def filter_affiliation(kill):
@@ -128,13 +148,14 @@ def get_party_details(parties):
             party['corporation'] = esi.get_corporation(party.get('corporation_id'))
             party['corp_zkb_link'] = 'https://zkillboard.com/corporation/{}'.format(party.get('corporation_id'))
         elif 'faction_id' in party:
+
             try:
                 party['corporation'] = esi.get_faction_corp(party.get('faction_id'))
                 party['corp_zkb_link'] = 'https://zkillboard.com/corporation/{}'.format(
                     party['corporation'].get('corporation_id'))
-            except APIException as e:
+            except ValueError:
                 party['corporation'] = {'corporation_name': 'Unknown'}
-                party['corp_zkb_link'] = 'https://zkillboard.com/faction/{}/'.format(party.get('faction_id'))
+                party['corp_zkb_link'] = '#'
         else:
             party['corporation'] = {'corporation_name': 'Unknown'}
             party['corp_zkb_link'] = '#'
