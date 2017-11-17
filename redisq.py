@@ -158,7 +158,7 @@ def get_party_details(parties):
                 party['corp_zkb_link'] = '#'
         else:
             party['corporation'] = {'corporation_name': 'Unknown'}
-            party['corp_zkb_link'] = '#'
+            party['corp_zkb_link'] = 'https://zkillboard.com/faction/{}/'.format(party.get('faction_id'))
 
     return parties
 
