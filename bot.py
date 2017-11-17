@@ -22,6 +22,7 @@ logger.addHandler(handler)
 
 def run():
     running = True
+    logger.info('Bot is listening on RedisQ')
     while running:
         try:
             kill = redisq.fetch_kill(config.REDISQ_QUEUE_ID, config.REDISQ_TTW)
