@@ -219,11 +219,11 @@ def format_kill(kill):
     if loss:
         color = config.COLOR_LOSS
         title = "<{victim[zkb_link]}|{victim[details][name]}> was killed by <{killer[zkb_link]}|{killer[details][name]}>" \
-                " (<{killer[corp_zkb_link]}|{killer[corporation][corporation_name]}>)"
+                " (<{killer[corp_zkb_link]}|{killer[corporation][name]}>)"
     else:
         color = config.COLOR_KILL
         title = "<{killer[zkb_link]}|{killer[details][name]}> killed <{victim[zkb_link]}|{victim[details][name]}>" \
-                " (<{victim[corp_zkb_link]}|{victim[corporation][corporation_name]}>)"
+                " (<{victim[corp_zkb_link]}|{victim[corporation][name]}>)"
 
     # Set up attachment fields
     fields = [
