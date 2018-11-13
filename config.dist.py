@@ -7,7 +7,7 @@ AFFILIATIONS = [98323701, 99006113]
 # ESI Settings
 ###################################
 ESI_DATASOURCE = 'tranquility'
-ESI_SWAGGER_JSON = 'https://esi.tech.ccp.is/latest/swagger.json?datasource={}'.format(ESI_DATASOURCE)
+ESI_SWAGGER_JSON = 'https://esi.evetech.net/_latest/swagger.json?datasource={}'.format(ESI_DATASOURCE)
 ESI_USER_AGENT = 'change me'
 
 

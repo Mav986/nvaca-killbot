@@ -71,7 +71,8 @@ def from_zkb_api(killID):
     if api_result.status_code == 200:
         killmail = api_result.json()[0]
         zkb = killmail.pop('zkb')
-        zkb['href'] = 'https://esi.tech.ccp.is/v1/killmails/{killID}/{hash}/'.format(killID=killID, hash=zkb['hash'])
+        zkb['href'] = 'https://esi.evetech.net/v1/killmails/{killID}/{hash}/'.format(killID=killID, hash=zkb['hash'])
+        killmail = esi.get_killmail(killID, zkb['hash'])
         kill = {'killID': killID, 'killmail': killmail, 'zkb': zkb}
 
         return kill
@@ -154,10 +155,10 @@ def get_party_details(parties):
                 party['corp_zkb_link'] = 'https://zkillboard.com/corporation/{}'.format(
                     party['corporation'].get('corporation_id'))
             except ValueError:
-                party['corporation'] = {'corporation_name': 'Unknown'}
+                party['corporation'] = {'name': 'Unknown'}
                 party['corp_zkb_link'] = '#'
         else:
-            party['corporation'] = {'corporation_name': 'Unknown'}
+            party['corporation'] = {'name': 'Unknown'}
             party['corp_zkb_link'] = 'https://zkillboard.com/faction/{}/'.format(party.get('faction_id'))
 
     return parties
