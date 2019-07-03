@@ -79,7 +79,7 @@ async def format_kill(kill):
     zkb = kill.get('zkb', {})
 
     # Format kill data
-    victim, ship, damage_taken = await get_victim_data(killmail)
+    victim, ship_raw, damage_taken = await get_victim_data(killmail)
     killer, num_attackers = await get_attacker_data(killmail)
     top_attacker = await get_top_attacker(killmail)
     location = await get_location_data(killmail)
@@ -92,6 +92,9 @@ async def format_kill(kill):
     else:
         description = await create_description(killer, victim, ' killed ')
         color = COLOR_KILL
+
+    # Create required markdown hyperlinks
+    ship = await _build_markdown_hyperlink(ship_raw['name'], 'https://zkillboard.com/ship/' + str(ship_raw['type_id']))
 
     # Set up embed fields
     fields = [
@@ -112,10 +115,9 @@ async def format_kill(kill):
             "url": "https://imageserver.eveonline.com/Render/{}_64.png".format(
             victim.get('ship_type_id', {}))
         },
-        "author": {
-            "name": "Lossmail" if is_loss else "Killmail",
-            "url": "https://zkillboard.com/kill/{}".format(kill_id),
-            "icon_url": "https://zkillboard.com/img/wreck.png"
+        "killmail": {
+            "text": "**Kill: " + ship_raw['name'] + "**",
+            "url": "https://zkillboard.com/kill/{}".format(kill_id)
         },
         "timestamp": datetime.strptime(killmail.get('killmail_time'), '%Y-%m-%dT%H:%M:%SZ')
     }
@@ -133,11 +135,10 @@ async def get_victim_data(killmail):
     victim = await get_party_details(victim_raw)
 
     ship_raw = esi.get_type(victim.get('ship_type_id'))
-    ship = await get_ship_name(ship_raw)
 
     damage_taken = victim.get("damage_taken", 0)
 
-    return victim, ship, "{:,.0f}".format(damage_taken)
+    return victim, ship_raw, "{:,.0f}".format(damage_taken)
 
 
 async def get_ship_name(victim_ship):
@@ -257,6 +258,7 @@ async def get_location_data(killmail):
     region = esi.get_system_region(system_id)
     wspace = esi.check_jspace(system_id)
     solar_system_details = esi.get_system(system_id)
+    security = round(solar_system_details['security_status'], 1)
 
     system = await _build_markdown_hyperlink(solar_system_details['name'], 'https://zkillboard.com/system/' + str(solar_system_details['system_id']))
     region = await _build_markdown_hyperlink(region['name'], 'https://zkillboard.com/region/' + str(region['region_id']))
@@ -264,7 +266,7 @@ async def get_location_data(killmail):
     if wspace:
         system += '(' + wspace + ')'
 
-    result = system + ' / ' + region
+    result = system + ' (' + str(security) + ') / ' + region
 
     return result
 
@@ -279,9 +281,9 @@ async def create_description(victim, killer, action):
     """
     victim_name = await _build_markdown_hyperlink(victim['details']['name'], victim['zkb_link'])
     killer_name = await _build_markdown_hyperlink(killer['details']['name'], killer['zkb_link'])
-    killer_corp = await _build_markdown_hyperlink(victim['corporation']['name'], victim['corp_zkb_link'])
+    killer_corp = await _build_markdown_hyperlink(killer['corporation']['name'], killer['corp_zkb_link'])
 
-    return victim_name + action + killer_name + ' ' + killer_corp
+    return victim_name + action + killer_name + ' (' + killer_corp + ')'
 
 
 async def format_field(name, value, inline=True):
@@ -308,14 +310,17 @@ async def _build_embed(json):
     embed =  Embed(
         description=json['description'],
         color=json['color'],
-        timestamp=json['timestamp']
+        timestamp=json['timestamp'],
+        title=json['killmail']['text'],
+        url=json['killmail']['url']
     ).set_thumbnail(
         url=json['thumbnail']['url']
-    ).set_author(
-        name=json['author']['name'],
-        url=json['author']['url'],
-        icon_url=json['author']['icon_url']
     )
+    # .set_author(
+    #     name=json['author']['name'],
+    #     url=json['author']['url'],
+    #     icon_url=json['author']['icon_url']
+    # )
 
     for field in json['fields']:
         embed.add_field(

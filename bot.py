@@ -2,6 +2,7 @@ import logging
 import sys
 
 import discord
+from discord.ext.tasks import loop
 client = discord.Client()
 
 from config import KILLBOT_CHANNEL_ID, TOKEN
@@ -15,25 +16,25 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+@loop(seconds=1)
 async def listen_for_kills():
     await client.wait_until_ready()
-    channel = client.get_channel(KILLBOT_CHANNEL_ID)
     logger.info('Bot is logged in and listening for new kills!')
+    channel = client.get_channel(KILLBOT_CHANNEL_ID)
     while True:
-        if not client.is_closed():
-            try:
+        try:
+            if not client.is_closed():
                 kill = await fetch_kill()
                 if kill and await filter_affiliation(kill):
                     await post_kill(channel, kill)
-
-            except KeyboardInterrupt:
-                logger.info('Received Keyboard interrupt.')
-            except Exception as e:
-                logger.exception(e)
-        else:
-            client.connect(reconnect=True)
+            else:
+                client.connect(reconnect=True)
+        except KeyboardInterrupt:
+            logger.info('Received Keyboard interrupt.')
+        except Exception as e:
+            logger.exception(e)
 
 
 if __name__ == '__main__':
-    client.loop.create_task(listen_for_kills())
+    listen_for_kills.start()
     client.run(TOKEN)
